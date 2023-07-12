@@ -1,63 +1,16 @@
 #!/usr/bin/python3
 import socket, struct, threading, argparse, concurrent.futures, logging, os,stat,time,subprocess,signal
 
-#creo il logger dedicato al server
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-#format = logging.Formatter('%(message)s')
-handler = logging.FileHandler('server.log')
-#handler.setFormatter(format)
-logger.addHandler(handler)
-
-#Controllo dei valori passati da riga di comando
-parser = argparse.ArgumentParser(prog = 'server.py',
-    description = "---------------------------------------\n"
-                  "Server che riceve sequenze dai client e le scrive su pipe condivisa da capolet e caposc",
-    formatter_class=argparse.RawTextHelpFormatter,
-    epilog='---------------------------------------')
-
-parser.add_argument('max_t', type=int,                                      help='Un intero positivo che d\u00e0 al server il massimo numero di thread che pu\u00f2 avviare contemporaneamente')
-parser.add_argument('-r',  type=int, default= 3,                            help= 'Numero thread lettori (default = 3)')
-parser.add_argument('-w',  type=int, default=3,                              help= 'Numero thread scrittori (default = 3)')
-parser.add_argument('-v',  action='store_true',                             help='Utilizzo -v per eseguire "archivio.c" con valgrind')
-args = parser.parse_args()
-
-assert args.max_t > 0
-if(args.v == True):
-  p = subprocess.Popen(["valgrind","--leak-check=full",
-                        "--show-leak-kinds=all" ,
-                        "--log-file=valgrind-%p.log",
-                        "--track-origins=yes",
-                        "./archivio", f"{args.r}",f"{args.w}"])
-                        
-else:
-  p = subprocess.Popen(["./archivio", f"{args.r}",f"{args.w}"])
-
-
-pid_archivio = p.pid
-
-#creo capolet e caposc se non esistono nella directory corrente
-current_path = os.getcwd()
-caposc_path = current_path +  '/caposc'
-capolet_path = current_path + '/capolet'
-
-if(not os.path.exists(caposc_path)):
-  os.mkfifo(caposc_path)
-
-if(not os.path.exists(capolet_path)):
-  os.mkfifo(capolet_path)
-
-#apro la pipe verso i programmi C
-fd = os.open('capolet', os.O_WRONLY)
-fd2 = os.open('caposc', os.O_WRONLY)
-
+lock = threading.Lock()
 Max_sequence_length = 2048
 PORT = 53563
 HOST = "127.0.0.1"
-ADDR = (HOST, PORT)
 
-lock = threading.Lock()
-
+#creo il logger dedicato al server
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('server.log')
+logger.addHandler(handler)
 
 def recv_all(conn,n):
   chunks = b''
@@ -70,17 +23,17 @@ def recv_all(conn,n):
     bytes_recd = bytes_recd + len(chunk)
   return chunks
  
-def gestisci_client(conn,addr):
+def gestisci_client(conn,addr,fd,fd2):
   with conn:
     #print(f"Nuova connessione da {addr}")
     #devo ricevere il tipo di comunicazione
     tipo = recv_all(conn,1).decode()
     if(tipo == "A"):
-        gestione_a(conn)
+        gestione_a(conn,fd)
     elif(tipo == "B"):
-        gestione_b(conn)
+        gestione_b(conn,fd2)
  
-def gestione_b(conn):
+def gestione_b(conn,fd2):
 
   bytes_totali = 0
   sequenze_ricevute = 0
@@ -113,7 +66,7 @@ def gestione_b(conn):
     sequenze_ricevute += 1  
     #print(data2)
 
-def gestione_a(conn):
+def gestione_a(conn,fd):
 
   bytes_totali = 0
   
@@ -136,25 +89,70 @@ def gestione_a(conn):
  
   
   logger.info(f"Connessione di tipo A | Bytes scritti nella pipe capolet : {bytes_totali}")
-  
-with socket.socket(socket.AF_INET , socket.SOCK_STREAM) as server : 
-  #collego il socket all'indirizzo
-  try:
-      print("[WAITING] : il server \u00e8 in attesa di connessioni")
-      server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-      server.bind(ADDR)
-      server.listen()
-      with concurrent.futures.ThreadPoolExecutor(max_workers= args.max_t) as executor:
-        while True:
-          conn, addr = server.accept()    
-          thread = threading.Thread(target = gestisci_client , args = (conn, addr)) 
-          thread.start()
-                                                                                       
-  except KeyboardInterrupt: #quando ricevo un'interruzione chiudo il server
-    pass
+ 
+def main(host=HOST,port=PORT): 
+  ADDR = (host,port)
+    #creo capolet e caposc se non esistono nella directory corrente
+  current_path = os.getcwd()
+  caposc_path = current_path +  '/caposc'
+  capolet_path = current_path + '/capolet'
 
-  print("[SHUTDOWN DEL SERVER]")
-  os.unlink(caposc_path)
-  os.unlink(capolet_path)
-  server.shutdown(socket.SHUT_RDWR)
-  os.kill(pid_archivio,signal.SIGTERM)
+  if(not os.path.exists(caposc_path)):
+    os.mkfifo(caposc_path)
+
+  if(not os.path.exists(capolet_path)):
+    os.mkfifo(capolet_path)
+
+  #apro la pipe verso i programmi C
+  fd = os.open('capolet', os.O_WRONLY)
+  fd2 = os.open('caposc', os.O_WRONLY)
+  
+  with socket.socket(socket.AF_INET , socket.SOCK_STREAM) as server : 
+    #collego il socket all'indirizzo
+    try:
+        print("[WAITING] : il server \u00e8 in attesa di connessioni")
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(ADDR)
+        server.listen()
+        with concurrent.futures.ThreadPoolExecutor(max_workers= args.max_t) as executor:
+          while True:
+            conn, addr = server.accept()    
+            thread = threading.Thread(target = gestisci_client , args = (conn, addr,fd,fd2)) 
+            thread.start()
+                                                                                        
+    except KeyboardInterrupt: #quando ricevo un'interruzione chiudo il server
+      pass
+
+    print("[SHUTDOWN DEL SERVER]")
+    os.unlink(caposc_path)
+    os.unlink(capolet_path)
+    server.shutdown(socket.SHUT_RDWR)
+    os.kill(p.pid,signal.SIGTERM)
+    
+
+if __name__ == '__main__':
+    #Controllo dei valori passati da riga di comando
+  parser = argparse.ArgumentParser(prog = 'server.py',
+      description = "---------------------------------------\n"
+                    "Server che riceve sequenze dai client e le scrive su pipe condivisa da capolet e caposc",
+      formatter_class=argparse.RawTextHelpFormatter,
+      epilog='---------------------------------------')
+  parser.add_argument('max_t', type=int,                                      help='Un intero positivo che d\u00e0 al server il massimo numero di thread che pu\u00f2 avviare contemporaneamente')
+  parser.add_argument('-r',  type=int, default= 3,                            help= 'Numero thread lettori (default = 3)')
+  parser.add_argument('-w',  type=int, default=3,                              help= 'Numero thread scrittori (default = 3)')
+  parser.add_argument('-v',  action='store_true',                             help='Utilizzo -v per eseguire "archivio.c" con valgrind')
+  
+  args = parser.parse_args()
+
+  assert args.max_t > 0
+  if(args.v == True):
+    p = subprocess.Popen(["valgrind","--leak-check=full",
+                          "--show-leak-kinds=all" ,
+                          "--log-file=valgrind-%p.log",
+                          "--track-origins=yes",
+                          "./xarchivio", f"{args.r}",f"{args.w}"])
+                          
+  else:
+    p = subprocess.Popen(["./archiviopatch", f"{args.r}",f"{args.w}"])
+    
+  main()
