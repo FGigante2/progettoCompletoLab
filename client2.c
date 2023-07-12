@@ -7,8 +7,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #define _GNU_SOURCE
-#include <unistd.h>
-#include <string.h>  
+#include <unistd.h> 
 #include <assert.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -16,7 +15,7 @@
 
 // host e port a cui connettersi
 #define HOST "127.0.0.1"
-#define PORT 5050
+#define PORT 53563
 #define Max_sequence_length 2048
 
 ssize_t getline(char **lineptr, size_t *n, FILE *stream);
@@ -55,7 +54,7 @@ size_t writen(int fd, void *ptr, size_t n) {
 
 void *gestionefile(void *v){
 
-    char * nomefile = (char *)v;
+    char *nomefile = (char *)v;
     int sequenze_inviate = 0;
 
     FILE *f = fopen(nomefile , "r");
@@ -82,12 +81,11 @@ void *gestionefile(void *v){
         perror("C'\u00e8 stato un errore nella connessione con il socket");
         exit(1);
     }
-    printf("[CONNESSO] Connessione effettuata con il socket di indirizzo %d \n" , server_address.sin_port);
     //---------------------------------FINE CREAZIONE SOCKET-----------------------------
 
     //mando il carattere "B" che specifica il tipo di connessione
-    char word = 'B';
-    writen(inet_socket, &word, 1);
+    char tipo_connessione = 'B';
+    writen(inet_socket, &tipo_connessione, 1);
    
     //leggo le linee del file
     char* linea = NULL;
@@ -112,8 +110,6 @@ void *gestionefile(void *v){
     fclose(f);
    
     //il thread ha finito di mandare tutte le linee del file
-    printf("Il client2 ha finito di mandare le linee del file : %s \n", nomefile);
-
 
     //invio la sequenza di lunghezza 0 (terminazione)
     char sequenza_terminazione[] = "";
