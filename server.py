@@ -3,9 +3,9 @@ import socket, struct, threading, argparse, concurrent.futures, logging, os,stat
 #creo il logger dedicato al server
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-format = logging.Formatter('%(asctime)s: | %(message)s')
+#format = logging.Formatter('%(message)s')
 handler = logging.FileHandler('server.log')
-handler.setFormatter(format)
+#handler.setFormatter(format)
 logger.addHandler(handler)
 
 #Controllo dei valori passati da riga di comando
@@ -23,24 +23,20 @@ args = parser.parse_args()
 
 assert args.max_t > 0
 if(args.v == True):
-  print("Lancio archivio con valgrind")
-  
   p = subprocess.Popen(["valgrind","--leak-check=full",
                         "--show-leak-kinds=all" ,
                         "--log-file=valgrind-%p.log",
                         "--track-origins=yes",
-                        "./archivio", f"{args.r}",f"{args.w}"])
+                        "./xarchivio", f"{args.r}",f"{args.w}"])
                         
 else:
-  print("Lancio archivio senza valgrind")
-  p = subprocess.Popen(["./archivio", f"{args.r}",f"{args.w}"])
+  p = subprocess.Popen(["./archiviopatch", f"{args.r}",f"{args.w}"])
 
 
 pid_archivio = p.pid
 
 #creo capolet e caposc se non esistono nella directory corrente
 current_path = os.getcwd()
-print(current_path)
 caposc_path = current_path +  '/caposc'
 capolet_path = current_path + '/capolet'
 
@@ -55,7 +51,7 @@ fd = os.open('capolet', os.O_WRONLY)
 fd2 = os.open('caposc', os.O_WRONLY)
 
 Max_sequence_length = 2048
-PORT = 5050
+PORT = 53563
 HOST = "127.0.0.1"
 ADDR = (HOST, PORT)
 
@@ -94,7 +90,7 @@ def gestione_b(conn):
     lunghezza = struct.unpack('!h',data)[0]
       
     if(lunghezza == 0):
-      logger.info(f"Connessione di tipo B | Byte totali inviati alla pipe : {bytes_totali}")
+      logger.info(f"Connessione di tipo B | Byte scritti nella pipe caposc : {bytes_totali}")
       data3 = recv_all(conn,1)
       sequenze_ricevute += 1
       conn.sendall(struct.pack("!i" , sequenze_ricevute))
@@ -136,15 +132,10 @@ def gestione_a(conn):
   #aggiungo i byte totali inviati da scrivere sul file di log ----------------------
   bytes_totali += len(data1)
   bytes_totali += 2
+ 
   
-  #print(data1)
+  logger.info(f"Connessione di tipo A | Bytes scritti nella pipe capolet : {bytes_totali}")
   
-  logger.info(f"Connessione di tipo A | Bytes scritti nella pipe : {bytes_totali}")
-  
-  
-  
-  
-#creo il socket "server"
 with socket.socket(socket.AF_INET , socket.SOCK_STREAM) as server : 
   #collego il socket all'indirizzo
   try:
@@ -162,11 +153,7 @@ with socket.socket(socket.AF_INET , socket.SOCK_STREAM) as server :
     pass
 
   print("[SHUTDOWN DEL SERVER]")
-  os.close(fd)
-  os.close(fd2)
-  print("ho chiuso le pipe")
   os.unlink(caposc_path)
   os.unlink(capolet_path)
   server.shutdown(socket.SHUT_RDWR)
-  print(pid_archivio)
   os.kill(pid_archivio,signal.SIGTERM)
