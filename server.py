@@ -27,10 +27,10 @@ if(args.v == True):
                         "--show-leak-kinds=all" ,
                         "--log-file=valgrind-%p.log",
                         "--track-origins=yes",
-                        "./xarchivio", f"{args.r}",f"{args.w}"])
+                        "./archivio", f"{args.r}",f"{args.w}"])
                         
 else:
-  p = subprocess.Popen(["./archiviopatch", f"{args.r}",f"{args.w}"])
+  p = subprocess.Popen(["./archivio", f"{args.r}",f"{args.w}"])
 
 
 pid_archivio = p.pid
