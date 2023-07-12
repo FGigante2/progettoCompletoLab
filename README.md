@@ -23,7 +23,7 @@ Il progetto consiste nella realizzazione di un archivio che memorizza stringhe d
 
 ## **ARCHIVIO**
 
-*Il file <code>archivio.c</code> contiene : main, capi, lettori e scrittori e il thread gestore dei segnali con gli handler associati, tutte le altre funzioni e strutture dati sono contenute nel file <code>funzioni.c</code> e nel corrispondente header <code>funzioni.h</code>*
+*Il file <code>archivio.c</code> contiene : main, capi, lettori e scrittori e il thread gestore dei segnali con gli handler associati, le funzioni dedicate alla tabella hash e ai readers/writers e tutte le strutture dati sono contenute nel file <code>funzioni.c</code> e nel corrispondente header <code>funzioni.h</code>*
 
 - **Gestione delle stringhe** : la funzione <code>crea_entry()</code> utilizza come chiave il puntatore della stringa che gli scrittori hanno trovato sul buffer condiviso, in questo modo evito di creare un ulteriore duplicato della stringa.
 
