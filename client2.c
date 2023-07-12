@@ -59,7 +59,7 @@ void *gestionefile(void *v){
 
     FILE *f = fopen(nomefile , "r");
      if(f == NULL){
-        printf("Errore nell'apertura del file %s \n, codice errore dsfasdfa :%d", nomefile, errno);
+        printf("Errore nell'apertura del file %s \n, codice errore %d", nomefile, errno);
         exit(1);
     }
 
