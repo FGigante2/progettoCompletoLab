@@ -29,6 +29,8 @@ Il progetto consiste nella realizzazione di un archivio che memorizza stringhe d
 
 - **strtok_r** : Per la tokenizzazione delle sequenze è necessaria la versione _r di strtok perché capolet e caposc possono trovarsi a tokenizzare le stringhe contemporaneamente. Usando strtok, capolet e caposc utilizzerebbero lo stesso buffer statico per la tokenizzazione e questo porterebbe ad errori.
 
+- **aggiungi()** : La funzione <code>aggiungi(char *s, int *entry_totali, ENTRY **testa_lista_entry)</code> prende due parametri extra, in questo modo posso aggiornare la lista e il valore di entry_totali senza che queste vengano dichiarate come variabili globali.
+
 - **distruggi_entry_safe** : Questa funzione dealloca tutta la memoria associata alla entry tranne la chiave, in questo modo dopo che i thread lettori chiamano la funzione <code>conta</code> possono scrivere la stringa sul file lettori.log. Dopo la scrittura sul file libero la memoria della della stringa.
 
 - **dealloca_hash** : La funzione prende in input la testa della lista e dealloca tutti gli elementi. Questa funzione viene invocata alla fine del main (solo dopo aver ricevuto SIGTERM) e nell'handler di SIGUSR1. Quando chiamo questa funzione non ci sono altri thread che hanno accesso alla tabella, né in scrittura né in lettura.
