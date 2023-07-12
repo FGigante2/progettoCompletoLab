@@ -25,7 +25,6 @@ def recv_all(conn,n):
  
 def gestisci_client(conn,addr,fd,fd2):
   with conn:
-    #print(f"Nuova connessione da {addr}")
     #devo ricevere il tipo di comunicazione
     tipo = recv_all(conn,1).decode()
     if(tipo == "A"):
@@ -57,14 +56,10 @@ def gestione_b(conn,fd2):
     os.write(fd2, data)
     os.write(fd2,data2)
     lock.release()
-    
-    
-    #invio la lunghezza alla pipe (formato short)
-    #-------------------------------
+  
     bytes_totali+=2
     bytes_totali += len(data2)
     sequenze_ricevute += 1  
-    #print(data2)
 
 def gestione_a(conn,fd):
 
@@ -77,17 +72,16 @@ def gestione_a(conn,fd):
   #ricevo la linea
   data1 = recv_all(conn,lunghezza)
   
-  #invio atomicamente lunghezza della sequenza e sequenza --------------------------
+  #invio atomicamente lunghezza della sequenza e sequenza
   lock.acquire()
   os.write(fd,data)
   os.write(fd,data1)
   lock.release()
   
-  #aggiungo i byte totali inviati da scrivere sul file di log ----------------------
+  #aggiungo i byte totali inviati da scrivere sul file di log
   bytes_totali += len(data1)
   bytes_totali += 2
  
-  
   logger.info(f"Connessione di tipo A | Bytes scritti nella pipe capolet : {bytes_totali}")
  
 def main(host=HOST,port=PORT): 
