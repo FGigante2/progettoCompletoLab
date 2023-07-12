@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import socket, struct, threading, argparse, concurrent.futures, logging, os,stat,time,subprocess,signal
 
 #creo il logger dedicato al server
