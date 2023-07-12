@@ -245,6 +245,7 @@ void* tgestore_thread(void *v){
 	  	break;
 	  	
 	case SIGTERM:
+		pthread_sigmask(SIG_BLOCK, &mask, NULL);
 	   	sigterm_handler(args->pipe_sigterm);
 	  	break;
 	  	
